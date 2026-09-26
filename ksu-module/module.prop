@@ -1,0 +1,6 @@
+id=yaap-kernelmask
+name=YAAP KernelMask
+version=0.1.0
+versionCode=1
+author=YAAP KernelMask contributors
+description=Configurable UTS kernel metadata compatibility layer for YAAP LKM kernels.

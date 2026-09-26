@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f5ff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11121b" media="(prefers-color-scheme: dark)">
+  <title>KernelMask · YAAP</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-mark" aria-hidden="true"></span> YAAP / KERNELSU WEBUI</p>
+        <h1>Kernel<span>Mask</span><span class="hero-spark" aria-hidden="true">✦</span></h1>
+        <p class="hero-description">自定义设备对外展示的内核标识与构建时间。</p>
+        <p class="hero-caption">仅作用于初始 UTS 命名空间的公开字段。</p>
+      </div>
+      <div class="hero-art" aria-hidden="true"><span class="hero-art-core"></span></div>
+    </header>
+
+    <div class="workspace">
+      <section class="card status-card" aria-labelledby="status-title">
+        <div class="section-heading status-heading">
+          <div class="heading-copy">
+            <span class="section-kicker">LIVE / 01</span>
+            <h2 id="status-title">当前状态</h2>
+          </div>
+          <button id="refresh" class="secondary action-button" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 7l2 5M4 12l2 5a7 7 0 0 0 12.3-2"/></svg>
+            <span>刷新</span>
+          </button>
+        </div>
+        <p class="section-description">查看模块状态、uname、/proc/version 与最近日志。</p>
+        <div class="status-window">
+          <div class="status-window-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>DEVICE OUTPUT</span></div>
+          <pre id="status" aria-live="polite" aria-label="设备当前状态">正在读取…</pre>
+        </div>
+      </section>
+
+      <section class="card config-card" aria-labelledby="config-title">
+        <div class="section-heading">
+          <div class="heading-copy">
+            <span class="section-kicker">CONFIG / 02</span>
+            <h2 id="config-title">伪装参数<span class="heading-spark" aria-hidden="true">✳</span></h2>
+          </div>
+        </div>
+        <p class="section-description">填写要展示的值。任何字段留空，都会保持该字段的原始值。</p>
+
+        <label class="toggle-card" for="enabled">
+          <span class="toggle-copy"><strong>启用 KernelMask</strong><span>保存后重载模块，使配置生效</span></span>
+          <input id="enabled" type="checkbox">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        </label>
+
+        <div class="fields-intro"><span>UTS 字段</span><span>留空 = 原始值</span></div>
+        <div class="field-grid">
+          <label class="field" for="sysname"><span class="field-title">内核名称 <span class="field-key">sysname</span></span><input id="sysname" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
+          <label class="field" for="nodename"><span class="field-title">节点名称 <span class="field-key">nodename</span></span><input id="nodename" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
+          <label class="field" for="release"><span class="field-title">内核发行版本 <span class="field-key">release</span></span><input id="release" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
+          <label class="field" for="machine"><span class="field-title">设备架构 <span class="field-key">machine</span></span><input id="machine" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
+          <label class="field field-wide" for="version"><span class="field-title">构建版本与时间 <span class="field-key">version</span></span><input id="version" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值" aria-describedby="version-help"><span id="version-help" class="field-help">这里填写 uname 的版本 / 构建时间文本；不会改变编译主机或编译器信息。</span></label>
+          <label class="field field-wide" for="domainname"><span class="field-title">域名 <span class="field-key">domainname</span></span><input id="domainname" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
+        </div>
+
+        <div class="form-footer">
+          <p class="input-note">每项最多 64 个 ASCII 字符；不支持引号、反斜杠。</p>
+          <button id="save" class="primary action-button" type="button"><span>保存并重载</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+          <p id="message" class="message" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+      </section>
+
+      <section class="card scope-card" aria-labelledby="scope-title">
+        <span class="scope-icon" aria-hidden="true">i</span>
+        <div>
+          <span class="section-kicker">ABOUT / 03</span>
+          <h2 id="scope-title">生效范围</h2>
+          <p>此模块调整 UTS 公开名称与版本字段，不隐藏 <code>/proc/modules</code>、<code>/proc/kallsyms</code>、SELinux、挂载表或 bootconfig。</p>
+          <p>重载时模块会短暂卸载并重新加载；如果失败，请先关闭开关，再查看服务日志。</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

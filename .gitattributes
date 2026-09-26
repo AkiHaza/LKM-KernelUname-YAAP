@@ -1,0 +1,9 @@
+*.sh text eol=lf
+*.yml text eol=lf
+*.c text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+Makefile text eol=lf
+Kbuild text eol=lf
+module.prop text eol=lf
