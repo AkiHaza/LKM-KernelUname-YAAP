@@ -14,8 +14,8 @@
       <div class="hero-copy">
         <p class="eyebrow"><span class="eyebrow-mark" aria-hidden="true"></span> YAAP / KERNELSU WEBUI</p>
         <h1>Kernel<span>Mask</span><span class="hero-spark" aria-hidden="true">✦</span></h1>
-        <p class="hero-description">自定义设备对外展示的内核标识与构建时间。</p>
-        <p class="hero-caption">仅作用于初始 UTS 命名空间的公开字段。</p>
+        <p class="hero-description">自定义设备对外展示的内核版本与构建时间。</p>
+        <p class="hero-caption">仅修改初始 UTS 命名空间的 release 和 version。</p>
       </div>
       <div class="hero-art" aria-hidden="true"><span class="hero-art-core"></span></div>
     </header>
@@ -32,7 +32,7 @@
             <span>刷新</span>
           </button>
         </div>
-        <p class="section-description">查看模块状态、uname、/proc/version 与最近日志。</p>
+        <p class="section-description">查看 uname、/proc 导出的内核版本和构建时间，以及最近日志。</p>
         <div class="status-window">
           <div class="status-window-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>DEVICE OUTPUT</span></div>
           <pre id="status" aria-live="polite" aria-label="设备当前状态">正在读取…</pre>
@@ -46,7 +46,7 @@
             <h2 id="config-title">伪装参数<span class="heading-spark" aria-hidden="true">✳</span></h2>
           </div>
         </div>
-        <p class="section-description">填写要展示的值。任何字段留空，都会保持该字段的原始值。</p>
+        <p class="section-description">只填写要替换的字段；留空则保持原值。例如 <code>Linux localhost 6.1.174-g638ecc425319 #1 SMP PREEMPT Wed Sep 16 23:10:11 CEST 2026 aarch64 Android</code> 中，只修改从 <code>6.1.174-g638ecc425319</code> 到 <code>2026</code> 的两段。</p>
 
         <label class="toggle-card" for="enabled">
           <span class="toggle-copy"><strong>启用 KernelMask</strong><span>保存后重载模块，使配置生效</span></span>
@@ -56,12 +56,8 @@
 
         <div class="fields-intro"><span>UTS 字段</span><span>留空 = 原始值</span></div>
         <div class="field-grid">
-          <label class="field" for="sysname"><span class="field-title">内核名称 <span class="field-key">sysname</span></span><input id="sysname" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
-          <label class="field" for="nodename"><span class="field-title">节点名称 <span class="field-key">nodename</span></span><input id="nodename" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
-          <label class="field" for="release"><span class="field-title">内核发行版本 <span class="field-key">release</span></span><input id="release" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
-          <label class="field" for="machine"><span class="field-title">设备架构 <span class="field-key">machine</span></span><input id="machine" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
-          <label class="field field-wide" for="version"><span class="field-title">构建版本与时间 <span class="field-key">version</span></span><input id="version" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值" aria-describedby="version-help"><span id="version-help" class="field-help">这里填写 uname 的版本 / 构建时间文本；不会改变编译主机或编译器信息。</span></label>
-          <label class="field field-wide" for="domainname"><span class="field-title">域名 <span class="field-key">domainname</span></span><input id="domainname" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="留空保持原值"></label>
+          <label class="field field-wide" for="release"><span class="field-title">内核版本标识 <span class="field-key">release / uname -r</span></span><input id="release" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="6.1.174-g638ecc425319" aria-describedby="release-help"><span id="release-help" class="field-help">只填写版本标识，不包含 Linux、localhost 或构建时间。</span></label>
+          <label class="field field-wide" for="version"><span class="field-title">构建版本与时间 <span class="field-key">version / uname -v</span></span><input id="version" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="#1 SMP PREEMPT Wed Sep 16 23:10:11 CEST 2026" aria-describedby="version-help"><span id="version-help" class="field-help">填写完整的 uname -v 文本，包含 #1、SMP/PREEMPT 和时间；不包含架构与 Android。</span></label>
         </div>
 
         <div class="form-footer">
@@ -76,7 +72,7 @@
         <div>
           <span class="section-kicker">ABOUT / 03</span>
           <h2 id="scope-title">生效范围</h2>
-          <p>此模块调整 UTS 公开名称与版本字段，不隐藏 <code>/proc/modules</code>、<code>/proc/kallsyms</code>、SELinux、挂载表或 bootconfig。</p>
+          <p>此模块只调整 UTS 的 <code>release</code> 和 <code>version</code>，让 <code>uname</code>、<code>/proc/version</code> 与 <code>/proc/sys/kernel/*</code> 中相应字段一致。</p>
           <p>重载时模块会短暂卸载并重新加载；如果失败，请先关闭开关，再查看服务日志。</p>
         </div>
       </section>

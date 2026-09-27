@@ -3,7 +3,7 @@
 
   const moduleDir = '/data/adb/modules/yaap-kernelmask';
   const serviceFile = `${moduleDir}/service.sh`;
-  const ids = ['sysname', 'nodename', 'release', 'version', 'machine', 'domainname'];
+  const ids = ['release', 'version'];
   let callbackCounter = 0;
 
   function quote(value) {
@@ -47,12 +47,19 @@
       `printf '%s\\n' '--- module ---'`,
       `grep '^kernelmask ' /proc/modules 2>/dev/null || printf '%s\\n' 'kernelmask: not loaded'`,
       `cat /sys/module/kernelmask/parameters/applied 2>/dev/null || true`,
-      `printf '%s\\n' '--- uname ---'`,
+      `printf '%s\\n' '--- uname -a ---'`,
       `uname -a`,
-      `printf '%s\\n' '--- proc/version ---'`,
-      `cat /proc/version`,
+      `printf '%s\\n' '--- uname -r / -v ---'`,
+      `uname -r`,
+      `uname -v`,
+      `printf '%s\\n' '--- /proc/sys/kernel/osrelease ---'`,
+      `cat /proc/sys/kernel/osrelease 2>/dev/null || true`,
+      `printf '%s\\n' '--- /proc/sys/kernel/version ---'`,
+      `cat /proc/sys/kernel/version 2>/dev/null || true`,
+      `printf '%s\\n' '--- /proc/version ---'`,
+      `cat /proc/version 2>/dev/null || true`,
       `printf '%s\\n' '--- parameters ---'`,
-      `for f in enabled sysname nodename release version machine domainname; do printf '%s=' "$f"; cat "/sys/module/kernelmask/parameters/$f" 2>/dev/null || true; done`,
+      `for f in enabled release version; do printf '%s=' "$f"; cat "/sys/module/kernelmask/parameters/$f" 2>/dev/null || true; done`,
       `printf '%s\\n' '--- log ---'`,
       `tail -n 12 /data/adb/kernelmask/service.log 2>/dev/null || true`,
     ].join('; ');
@@ -85,6 +92,9 @@
       if (value.length > 64 || /[^\x20-\x7e]|['"\\]/.test(value)) {
         throw new Error('字段只能包含安全的 ASCII 字符，最长 64 字符');
       }
+    }
+    if (values.release.includes(' ')) {
+      throw new Error('内核版本标识不能包含空格');
     }
     const lines = [
       `enabled=${document.querySelector('#enabled').checked ? '1' : '0'}`,

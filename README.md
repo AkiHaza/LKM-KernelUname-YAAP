@@ -2,75 +2,39 @@
 
 [中文说明](README.zh-CN.md)
 
-KernelMask is an experimental external kernel module for the OnePlus 12 YAAP
-`seventeen` kernel. It changes the *init UTS namespace*'s public `sysname`,
-`nodename`, kernel `release`, `version` (including the displayed build date),
-`machine`, and `domainname` while loaded. Empty values leave the original field
-alone. The default configuration is **disabled**.
+KernelMask is an experimental external module for the OnePlus 12 YAAP `seventeen` kernel. It changes only two fields in the initial UTS namespace:
 
-The module is intentionally narrower than SUSFS. It does not hide modules,
-`/proc/kallsyms`, mounts, bootconfig, SELinux state, or historical `dmesg`
-lines. The built-in compiler/host portion of `/proc/version` and the real
-module ABI/vermagic also remain unchanged. Existing non-init UTS namespaces may
-retain their original values; this module does not hook syscalls to cover them.
+| Parameter | Command | Example |
+|---|---|---|
+| `release` | `uname -r` | `6.1.174-g638ecc425319` |
+| `version` | `uname -v` | `#1 SMP PREEMPT Wed Sep 16 23:10:11 CEST 2026` |
 
-## Components
-
-- `kernel/kernelmask.c`: a normal GPL external module using YAAP's exported
-  `init_uts_ns` and `stop_machine` symbols. It saves the original fields,
-  applies selected replacements while CPUs are stopped, and restores only fields that still
-  contain its replacement on unload.
-- `ksu-module/`: KernelSU module wrapper, persistent configuration, and offline
-  WebUI. The module is loaded from `post-fs-data.sh` when available and
-  `service.sh` as a fallback.
-- `.github/workflows/build-yaap.yml`: a manually triggered YAAP build. It uses
-  the latest `seventeen` tips from AkiHaza's kernel and modules repositories,
-  clang-r596125, a complete YAAP kernel symbol build, and normal `modpost`.
+For `Linux localhost 6.1.174-g638ecc425319 #1 SMP PREEMPT Wed Sep 16 23:10:11 CEST 2026 aarch64 Android`, the module changes only the two fields between `localhost` and `aarch64`. It does not change `Linux`, `localhost`, `aarch64`, or `Android`. The default configuration is disabled, and an empty field preserves its original value.
 
 ## Build and install
 
-Run **Build KernelMask for YAAP** in GitHub Actions. Download the artifact; it
-contains `yaap-seventeen_kernelmask.ko`, `yaap-seventeen_kernelmask-ksu.zip`, a checksum list, and
-the exact kernel/modules revisions used. Install the zip through KernelSU
-Manager. Open its WebUI, enter only the fields you want to override, enable the
-module, and choose **保存并重载**. `uname -a` and `/proc/version` in the WebUI show
-the resulting view.
+Run **Build KernelMask for YAAP** in GitHub Actions. Install the resulting `yaap-seventeen_kernelmask-ksu.zip` through KernelSU Manager. Open the WebUI, enter the `release` and `version` values, enable the module, and choose **保存并重载**. The status view displays `uname -a`, `uname -r/-v`, `/proc/version`, `/proc/sys/kernel/osrelease`, and `/proc/sys/kernel/version`.
 
-The output is **not a generic GKI module**. It must match the running YAAP
-kernel's release, ABI symbol CRCs, configuration, and toolchain. A successful
-CI build cannot prove that the resulting `.ko` will load on a device running a
-different YAAP commit. Test on a device with recovery access. If loading fails,
-disable the module in WebUI or remove its KernelSU module and inspect
-`/data/adb/kernelmask/service.log` and `dmesg`.
+The output must match the running YAAP kernel's source revisions, ABI symbol CRCs, configuration, and toolchain. The workflow records the exact kernel and modules revisions. A successful CI build does not prove that the `.ko` can load on a device running a different YAAP commit. If loading fails, disable or remove the KernelSU module and inspect `/data/adb/kernelmask/service.log` and `dmesg`.
 
-The config is stored at `/data/adb/kernelmask/config.conf` and is preserved on
-uninstall. The WebUI accepts printable ASCII, up to 64 characters per field,
-excluding quotes and backslashes. These limits keep `insmod` parameters
-unambiguous, including a `version` containing spaces. A WebUI reload unloads
-the prior module before loading the new values. It is best to change names on
-a test device first: system services may assume a particular kernel release.
+Configuration is stored in `/data/adb/kernelmask/config.conf` and preserved on uninstall. Each field accepts up to 64 printable ASCII characters except quotes and backslashes. `release` cannot contain spaces; `version` can. A failed WebUI reload restores the previous configuration and attempts to reload the prior module. Legacy `sysname`, `nodename`, `machine`, and `domainname` configuration keys are read but ignored, then removed on the next WebUI save.
 
-## What changes
+## Duck Detector coverage
 
-The init UTS namespace feeds `uname(2)` and related `/proc/sys/kernel/*`
-nodes. `/proc/version` also reads the UTS name, release, and version fields,
-although it still prints the compile host/compiler baked into the kernel.
-Existing UTS namespaces created before KernelMask loads are not modified.
-Namespaces cloned while KernelMask is active can inherit the replacement and
-may retain it after this module is unloaded.
+[Duck Detector Refactoring's Kernel Check](https://github.com/eltavine/Duck-Detector-Refactoring/tree/56bd5dc501a27c87a4c00cbf8ad9d5c58352ccfb/feature/kernelcheck) compares the raw `uname()` syscall, `uname -r`, `/proc/version`, `/proc/sys/kernel/osrelease`, `/proc/sys/kernel/version`, and `System.getProperty("os.version")`, which Zygote cached during startup. Updating the initial UTS `release` and `version` makes the live `uname` and corresponding `/proc` exports read the same pair of values. KernelSU's `post-fs-data.sh` loads the module early so Zygote normally caches the replacement `release`. Loading or reloading after Zygote starts cannot update its existing Java property snapshot; reboot to refresh it.
 
-The external module cannot take YAAP's internal `uts_sem`: that semaphore is
-not exported to out-of-tree modules. Updates therefore use `stop_machine` as a
-best-effort consistency boundary. A concurrent `uname(2)` or hostname writer
-can still observe a transition; making this fully lock-consistent requires a
-small in-tree kernel change to export/use the appropriate UTS lock.
-Unloading the module restores the original values if no other writer changed
-them in the meantime. The underlying kernel image, `Module.symvers`, and boot
-partitions are never modified by the module.
+The detector also scans identity text for community kernel keywords, unusual major versions, non-Latin characters, and `@` mentions. Supply complete, plausible values from the intended kernel build. This module does not generate or sanitize them, and it does not alter the detector's other checks.
+
+Only the initial UTS namespace is changed. Namespaces created earlier may retain their original values; namespaces cloned while the module is active may retain replacements after unload. `/proc/version` still contains the compiler and build host baked into the kernel. The module does not change the kernel image, module ABI/vermagic, `/proc/modules`, `/proc/kallsyms`, mounts, SELinux, bootconfig, or historical `dmesg` lines.
+
+## Implementation
+
+`kernel/kernelmask.c` uses YAAP's exported `init_uts_ns` and `stop_machine` symbols to apply only `release` and `version`. On unload it restores each original field only if that field still contains the module's replacement. YAAP does not export its internal `uts_sem` to external modules, so `stop_machine` provides a best-effort update boundary; concurrent reads may still observe a short transition. Fully lock-consistent updates require an in-tree change using the UTS lock.
+
+`ksu-module/` contains the KernelSU wrapper, persistent configuration, and offline WebUI. It loads the module from `post-fs-data.sh`, with `service.sh` as a fallback. `.github/workflows/build-yaap.yml` builds against the current `seventeen` kernel and modules tips with clang-r596125 and normal `modpost`.
 
 ## Local build
 
-Use the workflow as the reference for the YAAP source and config assembly.
 After building the matching kernel and producing `Module.symvers`:
 
 ```sh
@@ -80,6 +44,4 @@ make -C "$KERNEL_DIR" O="$KERNEL_OUT" ARCH=arm64 LLVM=1 LLVM_IAS=1 \
 ./tools/package_ksu.sh kernel/kernelmask.ko out/yaap-kernelmask-ksu.zip
 ```
 
-Do not apply LKM4YAAP's KernelSU-specific empty-`__versions` `modpost` patch.
-KernelMask uses standard `insmod`, so it needs YAAP's normal non-empty symbol
-CRC section.
+Do not apply LKM4YAAP's KernelSU-specific empty-`__versions` `modpost` patch. Normal `insmod` needs YAAP's non-empty symbol CRC section.

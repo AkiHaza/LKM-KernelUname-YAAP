@@ -78,24 +78,16 @@ valid_value() {
 
 reset_values() {
 	enabled=0
-	sysname=
-	nodename=
 	release=
 	version=
-	machine=
-	domainname=
 }
 
 read_config() {
 	reset_values
 	error=
 	seen_enabled=0
-	seen_sysname=0
-	seen_nodename=0
 	seen_release=0
 	seen_version=0
-	seen_machine=0
-	seen_domainname=0
 	[ -e "$1" ] || return 0
 	[ -f "$1" ] || { error='configuration is not a regular file'; return 1; }
 	while IFS= read -r line || [ -n "$line" ]; do
@@ -110,25 +102,24 @@ read_config() {
 				seen_enabled=1
 				case "$value" in 0|1|y|Y|true|TRUE) enabled=$value ;; *) error='invalid enabled value'; return 1 ;; esac
 				;;
-			sysname|nodename|release|version|machine|domainname)
+			release|version)
 				case "$key" in
-					sysname) seen=$seen_sysname ;;
-					nodename) seen=$seen_nodename ;;
 					release) seen=$seen_release ;;
 					version) seen=$seen_version ;;
-					machine) seen=$seen_machine ;;
-					domainname) seen=$seen_domainname ;;
 				esac
 				[ "$seen" -eq 0 ] || { error="duplicate $key"; return 1; }
 				case "$key" in
-					sysname) seen_sysname=1; sysname=$value ;;
-					nodename) seen_nodename=1; nodename=$value ;;
 					release) seen_release=1; release=$value ;;
 					version) seen_version=1; version=$value ;;
-					machine) seen_machine=1; machine=$value ;;
-					domainname) seen_domainname=1; domainname=$value ;;
 				esac
 				valid_value "$value" || { error="invalid $key value"; return 1; }
+				if [ "$key" = release ]; then
+					case "$value" in *' '*) error='release must not contain spaces'; return 1 ;; esac
+				fi
+				;;
+			sysname|nodename|machine|domainname)
+				# Accept old configuration files without applying these fields.
+				valid_value "$value" || { error="invalid legacy $key value"; return 1; }
 				;;
 			*) error="unknown key $key"; return 1 ;;
 		esac
@@ -138,7 +129,7 @@ read_config() {
 
 ensure_config() {
 	if [ ! -e "$CONFIG_FILE" ]; then
-		printf '%s\n' 'enabled=0' 'sysname=' 'nodename=' 'release=' 'version=' 'machine=' 'domainname=' > "$CONFIG_FILE" || return 1
+		printf '%s\n' 'enabled=0' 'release=' 'version=' > "$CONFIG_FILE" || return 1
 		chmod 0600 "$CONFIG_FILE" 2>/dev/null || true
 	fi
 }
@@ -172,12 +163,8 @@ load_locked() {
 	out="$CONFIG_DIR/.insmod.$$"
 	if ! insmod "$KO_PATH" \
 		enabled="$enabled" \
-		sysname="\"$sysname\"" \
-		nodename="\"$nodename\"" \
 		release="\"$release\"" \
-		version="\"$version\"" \
-		machine="\"$machine\"" \
-		domainname="\"$domainname\"" >"$out" 2>&1; then
+		version="\"$version\"" >"$out" 2>&1; then
 		msg=$(cat "$out" 2>/dev/null || printf 'no diagnostic output')
 		rm -f "$out"
 		log_msg "insmod failed: $msg"
@@ -195,7 +182,7 @@ reload_locked() {
 
 print_config() {
 	read_config "$CONFIG_FILE" || { printf 'kernelmask: invalid configuration: %s\n' "$error" >&2; return 1; }
-	printf 'enabled=%s\nsysname=%s\nnodename=%s\nrelease=%s\nversion=%s\nmachine=%s\ndomainname=%s\n' "$enabled" "$sysname" "$nodename" "$release" "$version" "$machine" "$domainname"
+	printf 'enabled=%s\nrelease=%s\nversion=%s\n' "$enabled" "$release" "$version"
 }
 
 save_config() {
