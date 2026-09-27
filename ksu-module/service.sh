@@ -136,6 +136,17 @@ ensure_config() {
 
 loaded() { grep -q '^kernelmask ' /proc/modules 2>/dev/null; }
 
+zygote_running() {
+	if command -v pidof >/dev/null 2>&1 && pidof zygote zygote64 >/dev/null 2>&1; then
+		return 0
+	fi
+	ps -A 2>/dev/null | grep -E '[[:space:]]zygote(64)?([[:space:]]|$)' >/dev/null 2>&1
+}
+
+module_release() {
+	cat /sys/module/kernelmask/parameters/release 2>/dev/null || true
+}
+
 unload_locked() {
 	loaded || { log_msg 'already unloaded'; return 0; }
 	out="$CONFIG_DIR/.rmmod.$$"
@@ -153,7 +164,16 @@ unload_locked() {
 
 load_locked() {
 	reload=$1
+	boot=${2:-0}
 	read_config "$CONFIG_FILE" || { log_msg "invalid configuration: $error"; printf 'kernelmask: invalid configuration: %s\n' "$error" >&2; return 1; }
+	if [ "$boot" -eq 0 ] && [ "$enabled" -eq 1 ] && [ -n "$release" ] && zygote_running; then
+		current_release=$(module_release)
+		if [ "$current_release" != "$release" ]; then
+			log_msg "release change refused after Zygote started; reboot required (requested=$release current=$current_release)"
+			printf '%s\n' 'kernelmask: release changes require a reboot; configuration was not applied' >&2
+			return 1
+		fi
+	fi
 	if loaded; then
 		[ "$reload" -eq 0 ] && { log_msg 'already loaded'; return 0; }
 		unload_locked || return 1
@@ -173,11 +193,17 @@ load_locked() {
 	fi
 	rm -f "$out"
 	loaded || { log_msg 'insmod reported success but module is not loaded'; printf '%s\n' 'kernelmask: insmod reported success but module is not loaded' >&2; return 1; }
-	log_msg "loaded enabled=$enabled release=$release version=$version"
+	phase=manual
+	[ "$boot" -eq 1 ] && phase=boot
+	if zygote_running; then
+		log_msg "loaded enabled=$enabled release=$release version=$version phase=$phase zygote=present"
+	else
+		log_msg "loaded enabled=$enabled release=$release version=$version phase=$phase zygote=absent"
+	fi
 }
 
 reload_locked() {
-	ensure_config && load_locked "$1"
+	ensure_config && load_locked "$1" 0
 }
 
 print_config() {
@@ -198,10 +224,23 @@ save_config() {
 	read_config "$tmp" || { rm -f "$tmp" "$backup"; log_msg "rejected configuration: $error"; printf 'kernelmask: rejected configuration: %s\n' "$error" >&2; return 1; }
 	old=0
 	loaded && old=1
+	if zygote_running; then
+		current_release=
+		[ "$old" -eq 1 ] && current_release=$(module_release)
+		requested_release=$release
+		if [ "$current_release" != "$requested_release" ]; then
+			mv "$tmp" "$CONFIG_FILE" || { rm -f "$tmp" "$backup"; printf '%s\n' 'kernelmask: cannot install new configuration' >&2; return 1; }
+			rm -f "$backup"
+			log_msg "configuration saved for next reboot; release change deferred (requested=$requested_release current=$current_release)"
+			printf '%s\n' 'saved=deferred'
+			return 0
+		fi
+	fi
 	mv "$tmp" "$CONFIG_FILE" || { rm -f "$tmp" "$backup"; printf '%s\n' 'kernelmask: cannot install new configuration' >&2; return 1; }
-	if load_locked 1; then
+	if load_locked 1 0; then
 		rm -f "$backup"
 		log_msg 'configuration saved and module reloaded'
+		printf '%s\n' 'saved=applied'
 		return 0
 	fi
 	log_msg 'new configuration failed; restoring previous configuration'
@@ -211,7 +250,7 @@ save_config() {
 		rm -f "$CONFIG_FILE"
 	fi
 	if [ "$old" -eq 1 ]; then
-		load_locked 1 || { printf '%s\n' 'kernelmask: reload failed; file restored but previous module reload failed' >&2; return 1; }
+		load_locked 1 0 || { printf '%s\n' 'kernelmask: reload failed; file restored but previous module reload failed' >&2; return 1; }
 	elif loaded; then
 		unload_locked || { printf '%s\n' 'kernelmask: reload failed; file restored but module cleanup failed' >&2; return 1; }
 	fi
@@ -221,6 +260,7 @@ save_config() {
 
 mkdir -p "$CONFIG_DIR" 2>/dev/null || { printf 'kernelmask: cannot create %s\n' "$CONFIG_DIR" >&2; exit 1; }
 case "$1" in
+	--boot) acquire_lock || exit 1; ensure_config && load_locked 0 1; result=$?; release_lock; exit "$result" ;;
 	--reload) run_locked reload_locked 1; exit $? ;;
 	--unload) run_locked unload_locked; exit $? ;;
 	--save-config) run_locked save_config; exit $? ;;

@@ -49,7 +49,7 @@
         <p class="section-description">只填写要替换的字段；留空则保持原值。例如 <code>Linux localhost 6.1.174-g638ecc425319 #1 SMP PREEMPT Wed Sep 16 23:10:11 CEST 2026 aarch64 Android</code> 中，只修改从 <code>6.1.174-g638ecc425319</code> 到 <code>2026</code> 的两段。</p>
 
         <label class="toggle-card" for="enabled">
-          <span class="toggle-copy"><strong>启用 KernelMask</strong><span>保存后重载模块，使配置生效</span></span>
+          <span class="toggle-copy"><strong>启用 KernelMask</strong><span>release 变更会保存到下次重启时生效</span></span>
           <input id="enabled" type="checkbox">
           <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
         </label>
@@ -61,8 +61,8 @@
         </div>
 
         <div class="form-footer">
-          <p class="input-note">每项最多 64 个 ASCII 字符；不支持引号、反斜杠。</p>
-          <button id="save" class="primary action-button" type="button"><span>保存并重载</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+          <p class="input-note">每项最多 64 个 ASCII 字符；不支持引号、反斜杠。修改 release 后必须重启设备，才能让 Zygote 的缓存值同步。</p>
+          <button id="save" class="primary action-button" type="button"><span>保存配置</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
           <p id="message" class="message" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
       </section>
@@ -73,7 +73,7 @@
           <span class="section-kicker">ABOUT / 03</span>
           <h2 id="scope-title">生效范围</h2>
           <p>此模块只调整 UTS 的 <code>release</code> 和 <code>version</code>，让 <code>uname</code>、<code>/proc/version</code> 与 <code>/proc/sys/kernel/*</code> 中相应字段一致。</p>
-          <p>重载时模块会短暂卸载并重新加载；如果失败，请先关闭开关，再查看服务日志。</p>
+          <p>release 变更会延迟到下次重启；其他配置保存时模块会短暂卸载并重新加载。失败时请查看服务日志。</p>
         </div>
       </section>
     </div>

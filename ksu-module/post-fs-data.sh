@@ -1,4 +1,4 @@
 #!/system/bin/sh
 
 MODDIR=${0%/*}
-exec "$MODDIR/service.sh"
+exec "$MODDIR/service.sh" --boot

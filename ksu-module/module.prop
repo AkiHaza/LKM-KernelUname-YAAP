@@ -1,6 +1,6 @@
 id=yaap-kernelmask
 name=YAAP KernelMask
-version=0.2.0
-versionCode=2
+version=0.2.2
+versionCode=4
 author=YAAP KernelMask contributors
 description=Configurable UTS release and build version for YAAP LKM kernels.

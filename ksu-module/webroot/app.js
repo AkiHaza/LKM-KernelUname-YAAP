@@ -45,6 +45,7 @@
   async function refresh() {
     const command = [
       `printf '%s\\n' '--- module ---'`,
+      `grep '^version=' ${quote(`${moduleDir}/module.prop`)} 2>/dev/null || true`,
       `grep '^kernelmask ' /proc/modules 2>/dev/null || printf '%s\\n' 'kernelmask: not loaded'`,
       `cat /sys/module/kernelmask/parameters/applied 2>/dev/null || true`,
       `printf '%s\\n' '--- uname -a ---'`,
@@ -60,6 +61,8 @@
       `cat /proc/version 2>/dev/null || true`,
       `printf '%s\\n' '--- parameters ---'`,
       `for f in enabled release version; do printf '%s=' "$f"; cat "/sys/module/kernelmask/parameters/$f" 2>/dev/null || true; done`,
+      `printf '%s\\n' '--- zygote ---'`,
+      `pidof zygote zygote64 2>/dev/null || true`,
       `printf '%s\\n' '--- log ---'`,
       `tail -n 12 /data/adb/kernelmask/service.log 2>/dev/null || true`,
     ].join('; ');
@@ -102,14 +105,19 @@
     ];
     const body = lines.map((line) => `printf '%s\\n' ${quote(line)}`).join('; ');
     const command = `{ ${body}; } | sh ${quote(serviceFile)} --save-config`;
+    let result;
     try {
-      await exec(command);
+      result = await exec(command);
     } catch (error) {
       await loadConfig();
       await refresh();
       throw error;
     }
-    setMessage('已保存并重载');
+    if (result.includes('saved=deferred')) {
+      setMessage('配置已保存；release 将在下次重启时生效。重启后请重新运行检测器。');
+    } else {
+      setMessage('配置已保存并应用；若检测器仍报告 release 不一致，请重启后重新扫描。');
+    }
     await refresh();
   }
 

@@ -13,7 +13,7 @@ For `Linux localhost 6.1.174-g638ecc425319 #1 SMP PREEMPT Wed Sep 16 23:10:11 CE
 
 ## Build and install
 
-Run **Build KernelMask for YAAP** in GitHub Actions. Install the resulting `yaap-seventeen_kernelmask-ksu.zip` through KernelSU Manager. Open the WebUI, enter the `release` and `version` values, enable the module, and choose **保存并重载**. The status view displays `uname -a`, `uname -r/-v`, `/proc/version`, `/proc/sys/kernel/osrelease`, and `/proc/sys/kernel/version`.
+Run **Build KernelMask for YAAP** in GitHub Actions. Install the resulting `yaap-seventeen_kernelmask-ksu.zip` through KernelSU Manager. Open the WebUI, enter the `release` and `version` values, enable the module, and choose **保存配置**. A changed `release` is saved for the next boot, so reboot the device. The status view displays the installed module version, `uname -a`, `uname -r/-v`, `/proc/version`, `/proc/sys/kernel/osrelease`, `/proc/sys/kernel/version`, and recent service logs. Run a new Duck Detector scan after reboot.
 
 The output must match the running YAAP kernel's source revisions, ABI symbol CRCs, configuration, and toolchain. The workflow records the exact kernel and modules revisions. A successful CI build does not prove that the `.ko` can load on a device running a different YAAP commit. If loading fails, disable or remove the KernelSU module and inspect `/data/adb/kernelmask/service.log` and `dmesg`.
 
@@ -21,7 +21,7 @@ Configuration is stored in `/data/adb/kernelmask/config.conf` and preserved on u
 
 ## Duck Detector coverage
 
-[Duck Detector Refactoring's Kernel Check](https://github.com/eltavine/Duck-Detector-Refactoring/tree/56bd5dc501a27c87a4c00cbf8ad9d5c58352ccfb/feature/kernelcheck) compares the raw `uname()` syscall, `uname -r`, `/proc/version`, `/proc/sys/kernel/osrelease`, `/proc/sys/kernel/version`, and `System.getProperty("os.version")`, which Zygote cached during startup. Updating the initial UTS `release` and `version` makes the live `uname` and corresponding `/proc` exports read the same pair of values. KernelSU's `post-fs-data.sh` loads the module early so Zygote normally caches the replacement `release`. Loading or reloading after Zygote starts cannot update its existing Java property snapshot; reboot to refresh it.
+[Duck Detector Refactoring's Kernel Check](https://github.com/eltavine/Duck-Detector-Refactoring/tree/56bd5dc501a27c87a4c00cbf8ad9d5c58352ccfb/feature/kernelcheck) compares the raw `uname()` syscall, `uname -r`, `/proc/version`, `/proc/sys/kernel/osrelease`, `/proc/sys/kernel/version`, and `System.getProperty("os.version")`, which Zygote cached during startup. Updating the initial UTS `release` and `version` makes the live `uname` and corresponding `/proc` exports read the same pair of values. KernelSU's `post-fs-data.sh` loads the module early so Zygote normally caches the replacement `release`. A changed `release` is now saved for the next boot instead of being applied after Zygote starts. If a new post-reboot scan still diverges, inspect the service log for `phase=boot`, `zygote=absent`, and other modules that may change release later. Do not copy a stale value such as `6.1.177-@2ecbce56` from a report into the new identity: the `@` marker is separately suspicious.
 
 The detector also scans identity text for community kernel keywords, unusual major versions, non-Latin characters, and `@` mentions. Supply complete, plausible values from the intended kernel build. This module does not generate or sanitize them, and it does not alter the detector's other checks.
 
